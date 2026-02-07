@@ -1,0 +1,555 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Neural Security Interface v2.5</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+    <style>
+        @import url('https://fonts.googleapis.com/css2?family=Share+Tech+Mono&family=Orbitron:wght@400;700&display=swap');
+        
+        :root {
+            --neon-green: #00ff41;
+            --matrix-green: #0aff0a;
+            --dark-bg: #0a0a0a;
+        }
+        
+        body {
+            font-family: 'Share Tech Mono', monospace;
+            background-color: var(--dark-bg);
+            color: var(--neon-green);
+            overflow-x: hidden;
+            min-height: 100vh;
+        }
+        
+        .header-font {
+            font-family: 'Orbitron', sans-serif;
+        }
+        
+        .terminal-text {
+            font-family: 'Share Tech Mono', monospace;
+            color: var(--neon-green);
+            text-shadow: 0 0 5px rgba(0, 255, 65, 0.5);
+        }
+        
+        .neon-border {
+            border: 1px solid var(--neon-green);
+            box-shadow: 0 0 10px rgba(0, 255, 65, 0.3), inset 0 0 10px rgba(0, 255, 65, 0.1);
+        }
+        
+        .neon-glow {
+            box-shadow: 0 0 15px rgba(0, 255, 65, 0.7);
+        }
+        
+        .scanning-animation {
+            animation: pulse 1.5s infinite alternate;
+        }
+        
+        @keyframes pulse {
+            0% { box-shadow: 0 0 5px rgba(0, 255, 65, 0.3); }
+            100% { box-shadow: 0 0 20px rgba(0, 255, 65, 0.7), 0 0 30px rgba(0, 255, 65, 0.4); }
+        }
+        
+        @keyframes blink {
+            0%, 100% { opacity: 1; }
+            50% { opacity: 0.5; }
+        }
+        
+        .blinking {
+            animation: blink 1s infinite;
+        }
+        
+        .progress-bar {
+            height: 20px;
+            background-color: #0a2e0a;
+            border-radius: 10px;
+            overflow: hidden;
+            position: relative;
+        }
+        
+        .progress-fill {
+            height: 100%;
+            width: 0%;
+            background: linear-gradient(90deg, #0a2e0a, var(--neon-green));
+            border-radius: 10px;
+            transition: width 0.3s ease;
+        }
+        
+        .matrix-bg {
+            position: fixed;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            z-index: -100;
+            opacity: 0.03;
+            pointer-events: none;
+        }
+        
+        .input-field {
+            background-color: rgba(10, 46, 10, 0.3);
+            border: 1px solid var(--neon-green);
+            color: var(--neon-green);
+            padding: 12px 16px;
+            font-size: 18px;
+            outline: none;
+            transition: all 0.3s;
+        }
+        
+        .input-field:focus {
+            box-shadow: 0 0 10px rgba(0, 255, 65, 0.5);
+            background-color: rgba(10, 46, 10, 0.5);
+        }
+        
+        .scan-btn {
+            background: linear-gradient(45deg, #0a2e0a, #003300);
+            color: var(--neon-green);
+            border: 1px solid var(--neon-green);
+            padding: 18px 30px;
+            font-size: 20px;
+            cursor: pointer;
+            transition: all 0.3s;
+            position: relative;
+            overflow: hidden;
+        }
+        
+        .scan-btn:hover:not(:disabled) {
+            background: linear-gradient(45deg, #003300, #0a2e0a);
+            box-shadow: 0 0 20px rgba(0, 255, 65, 0.5);
+            transform: translateY(-2px);
+        }
+        
+        .scan-btn:disabled {
+            opacity: 0.7;
+            cursor: not-allowed;
+        }
+        
+        .status-box {
+            min-height: 60px;
+            transition: all 0.5s;
+            overflow: hidden;
+        }
+        
+        @keyframes glitch {
+            0% { transform: translate(0); }
+            20% { transform: translate(-2px, 2px); }
+            40% { transform: translate(-2px, -2px); }
+            60% { transform: translate(2px, 2px); }
+            80% { transform: translate(2px, -2px); }
+            100% { transform: translate(0); }
+        }
+        
+        .glitch-effect {
+            animation: glitch 0.3s linear infinite;
+        }
+        
+        .typewriter {
+            overflow: hidden;
+            white-space: nowrap;
+            border-right: 2px solid var(--neon-green);
+            animation: typing 3.5s steps(40, end), blink-caret 0.75s step-end infinite;
+        }
+        
+        @keyframes typing {
+            from { width: 0; }
+            to { width: 100%; }
+        }
+        
+        @keyframes blink-caret {
+            from, to { border-color: transparent; }
+            50% { border-color: var(--neon-green); }
+        }
+    </style>
+</head>
+<body>
+    <!-- Matrix background -->
+    <canvas id="matrixCanvas" class="matrix-bg"></canvas>
+    
+    <div class="container mx-auto px-4 py-8 max-w-3xl">
+        <!-- Header -->
+        <header class="text-center mb-12">
+            <div class="flex justify-center items-center mb-4">
+                <div class="w-3 h-3 rounded-full bg-red-500 mr-2"></div>
+                <div class="w-3 h-3 rounded-full bg-yellow-500 mr-2"></div>
+                <div class="w-3 h-3 rounded-full bg-green-500 mr-2"></div>
+                <span class="terminal-text ml-2 text-lg">SECURE TERMINAL</span>
+            </div>
+            
+            <h1 class="header-font text-4xl md:text-5xl font-bold mb-4 terminal-text">NEURAL SECURITY INTERFACE</h1>
+            <p class="terminal-text text-xl md:text-2xl blinking">v2.5</p>
+            
+            <div class="h-1 bg-gradient-to-r from-transparent via-green-500 to-transparent w-3/4 mx-auto my-6"></div>
+            
+            <p class="terminal-text typewriter mt-6">> INITIALIZING BIOMETRIC SCAN PROTOCOL...</p>
+        </header>
+        
+        <!-- Main Interface -->
+        <main class="neon-border rounded-xl p-6 md:p-8 bg-black bg-opacity-80 mb-10">
+            <!-- System Status -->
+            <div class="mb-10">
+                <div class="flex items-center mb-4">
+                    <i class="fas fa-circle text-green-500 mr-3 text-sm"></i>
+                    <p class="terminal-text text-lg">SYSTEM STATUS: <span class="text-green-500 font-bold">OPERATIONAL</span></p>
+                </div>
+                <div class="grid grid-cols-1 md:grid-cols-3 gap-4 mb-6">
+                    <div class="neon-border rounded p-3">
+                        <p class="terminal-text text-sm">ENCRYPTION: <span class="text-green-500">AES-256</span></p>
+                    </div>
+                    <div class="neon-border rounded p-3">
+                        <p class="terminal-text text-sm">CONNECTION: <span class="text-green-500">SECURE</span></p>
+                    </div>
+                    <div class="neon-border rounded p-3">
+                        <p class="terminal-text text-sm">LAST SCAN: <span class="text-green-500">--:--:--</span></p>
+                    </div>
+                </div>
+            </div>
+            
+            <!-- Name Input -->
+            <div class="mb-10">
+                <label for="userName" class="terminal-text block mb-4 text-xl">
+                    <i class="fas fa-user mr-3"></i> ENTER IDENTIFICATION:
+                </label>
+                <input 
+                    type="text" 
+                    id="userName" 
+                    class="input-field w-full rounded-lg terminal-text"
+                    placeholder="ENTER YOUR FULL NAME"
+                    autocomplete="off"
+                    maxlength="50"
+                >
+                <p class="terminal-text mt-3 text-sm opacity-80">
+                    <i class="fas fa-info-circle mr-2"></i> Full name required for biometric verification
+                </p>
+            </div>
+            
+            <!-- Fingerprint Scan Section -->
+            <div class="mb-10">
+                <div class="text-center mb-8">
+                    <div class="inline-block p-6 rounded-full neon-border mb-4">
+                        <i class="fas fa-fingerprint text-5xl text-green-500"></i>
+                    </div>
+                    <p class="terminal-text mb-2">READY FOR BIOMETRIC SCAN</p>
+                    <p class="terminal-text text-sm opacity-80">Place your finger on the sensor when prompted</p>
+                </div>
+                
+                <!-- Scan Button -->
+                <div class="text-center mb-8">
+                    <button id="scanButton" class="scan-btn rounded-lg header-font scanning-animation">
+                        <i class="fas fa-fingerprint mr-3"></i> INITIATE FINGERPRINT SCAN
+                    </button>
+                </div>
+                
+                <!-- Progress Bar (Initially Hidden) -->
+                <div id="progressSection" class="hidden">
+                    <p class="terminal-text mb-3 flex items-center">
+                        <i class="fas fa-sync-alt fa-spin mr-3"></i> SCANNING IN PROGRESS...
+                    </p>
+                    <div class="progress-bar mb-4">
+                        <div id="progressFill" class="progress-fill"></div>
+                    </div>
+                    <div class="flex justify-between">
+                        <p id="progressText" class="terminal-text text-sm">Initializing scanner: 0%</p>
+                        <p id="timeRemaining" class="terminal-text text-sm">Estimated time: 5s</p>
+                    </div>
+                </div>
+            </div>
+            
+            <!-- Status Messages -->
+            <div id="statusBox" class="status-box neon-border rounded-lg p-4 bg-black bg-opacity-50">
+                <div id="statusMessages" class="space-y-2">
+                    <p id="statusText" class="terminal-text">
+                        <i class="fas fa-terminal mr-2"></i> > System ready. Awaiting user input.
+                    </p>
+                </div>
+            </div>
+        </main>
+        
+        <!-- Admin Link -->
+        <div class="text-center mb-10">
+            <a href="admin.php" class="inline-block terminal-text text-sm opacity-70 hover:opacity-100 transition-opacity">
+                <i class="fas fa-shield-alt mr-2"></i> ADMIN ACCESS
+            </a>
+        </div>
+        
+        <!-- Footer -->
+        <footer class="text-center terminal-text opacity-70 text-sm">
+            <p>> Neural Security Interface v2.5 | © 2023 Quantum Systems Division</p>
+            <p class="mt-2">> This is a simulation. No actual biometric data is collected or stored.</p>
+        </footer>
+    </div>
+    
+    <script>
+        // Matrix background effect
+        const canvas = document.getElementById('matrixCanvas');
+        const ctx = canvas.getContext('2d');
+        
+        // Set canvas dimensions
+        function resizeCanvas() {
+            canvas.width = window.innerWidth;
+            canvas.height = window.innerHeight;
+        }
+        resizeCanvas();
+        window.addEventListener('resize', resizeCanvas);
+        
+        // Matrix characters
+        const chars = "ABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789$+-*/=%\"'#&_(),.;:?!\\|{}<>[]^~";
+        const charArray = chars.split("");
+        const fontSize = 12;
+        const columns = Math.floor(canvas.width / fontSize);
+        
+        // Create drops for each column
+        const drops = [];
+        for (let i = 0; i < columns; i++) {
+            drops[i] = Math.floor(Math.random() * canvas.height / fontSize);
+        }
+        
+        function drawMatrix() {
+            // Semi-transparent black to create trail effect
+            ctx.fillStyle = "rgba(10, 10, 10, 0.05)";
+            ctx.fillRect(0, 0, canvas.width, canvas.height);
+            
+            ctx.fillStyle = "#0aff0a";
+            ctx.font = `${fontSize}px 'Share Tech Mono', monospace`;
+            
+            for (let i = 0; i < drops.length; i++) {
+                // Random character
+                const text = charArray[Math.floor(Math.random() * charArray.length)];
+                
+                // Draw character
+                ctx.fillText(text, i * fontSize, drops[i] * fontSize);
+                
+                // Reset drop if it reaches bottom or randomly
+                if (drops[i] * fontSize > canvas.height && Math.random() > 0.975) {
+                    drops[i] = 0;
+                }
+                
+                // Move drop down
+                drops[i]++;
+            }
+        }
+        
+        // Animation loop for matrix background
+        setInterval(drawMatrix, 50);
+        
+        // DOM Elements
+        const userNameInput = document.getElementById('userName');
+        const scanButton = document.getElementById('scanButton');
+        const progressSection = document.getElementById('progressSection');
+        const progressFill = document.getElementById('progressFill');
+        const progressText = document.getElementById('progressText');
+        const timeRemaining = document.getElementById('timeRemaining');
+        const statusBox = document.getElementById('statusBox');
+        const statusMessages = document.getElementById('statusMessages');
+        const statusText = document.getElementById('statusText');
+        
+        // Add status message function
+        function addStatusMessage(message, type = 'info') {
+            const icon = type === 'error' ? 'fa-exclamation-triangle' : 
+                         type === 'success' ? 'fa-check-circle' : 'fa-terminal';
+            const color = type === 'error' ? 'text-red-400' : 
+                         type === 'success' ? 'text-green-400' : 'text-green-300';
+            
+            const messageElement = document.createElement('p');
+            messageElement.className = `terminal-text ${color}`;
+            messageElement.innerHTML = `<i class="fas ${icon} mr-2"></i> > ${message}`;
+            
+            statusMessages.appendChild(messageElement);
+            statusBox.scrollTop = statusBox.scrollHeight;
+            
+            // Remove oldest message if more than 5
+            if (statusMessages.children.length > 5) {
+                statusMessages.removeChild(statusMessages.children[0]);
+            }
+        }
+        
+        // Clear status messages
+        function clearStatusMessages() {
+            statusMessages.innerHTML = '';
+        }
+        
+        // Generate a random fingerprint ID
+        function generateFingerprintId() {
+            const timestamp = Date.now().toString(36).toUpperCase();
+            const randomStr = Math.random().toString(36).substring(2, 10).toUpperCase();
+            return `FPID_${timestamp}_${randomStr}`;
+        }
+        
+        // Scan button event handler
+        scanButton.addEventListener('click', async function() {
+            const userName = userNameInput.value.trim();
+            
+            // Validation
+            if (!userName) {
+                addStatusMessage('ERROR: IDENTIFICATION REQUIRED. Please enter your name.', 'error');
+                userNameInput.focus();
+                userNameInput.classList.add('glitch-effect');
+                setTimeout(() => userNameInput.classList.remove('glitch-effect'), 300);
+                return;
+            }
+            
+            if (userName.length < 2) {
+                addStatusMessage('ERROR: NAME TOO SHORT. Minimum 2 characters required.', 'error');
+                userNameInput.focus();
+                return;
+            }
+            
+            // Disable input and button
+            userNameInput.disabled = true;
+            scanButton.disabled = true;
+            scanButton.classList.remove('scanning-animation');
+            scanButton.innerHTML = '<i class="fas fa-cog fa-spin mr-3"></i> SCANNING IN PROGRESS...';
+            
+            // Clear previous status messages
+            clearStatusMessages();
+            addStatusMessage('Starting biometric scan protocol...');
+            
+            // Show progress section
+            progressSection.classList.remove('hidden');
+            
+            // Start scanning animation
+            await startScanning(userName);
+        });
+        
+        // Start the scanning animation
+        async function startScanning(userName) {
+            return new Promise((resolve) => {
+                let progress = 0;
+                const totalTime = 5000; // 5 seconds total
+                const intervalTime = 50; // Update every 50ms
+                const steps = totalTime / intervalTime;
+                const progressPerStep = 100 / steps;
+                
+                addStatusMessage('Initializing biometric sensors...');
+                
+                const scanInterval = setInterval(() => {
+                    progress += progressPerStep;
+                    
+                    // Update progress bar
+                    progressFill.style.width = `${progress}%`;
+                    
+                    // Update progress text based on progress
+                    if (progress <= 20) {
+                        progressText.textContent = `Calibrating scanner: ${Math.round(progress)}%`;
+                        timeRemaining.textContent = 'Estimated time: 4s';
+                    } else if (progress <= 40) {
+                        progressText.textContent = `Reading fingerprint patterns: ${Math.round(progress)}%`;
+                        timeRemaining.textContent = 'Estimated time: 3s';
+                    } else if (progress <= 60) {
+                        progressText.textContent = `Analyzing ridge characteristics: ${Math.round(progress)}%`;
+                        timeRemaining.textContent = 'Estimated time: 2s';
+                    } else if (progress <= 80) {
+                        progressText.textContent = `Verifying biometric data: ${Math.round(progress)}%`;
+                        timeRemaining.textContent = 'Estimated time: 1s';
+                    } else if (progress < 100) {
+                        progressText.textContent = `Finalizing scan: ${Math.round(progress)}%`;
+                        timeRemaining.textContent = 'Estimated time: <1s';
+                    } else {
+                        progressText.textContent = `Scan complete: 100%`;
+                        timeRemaining.textContent = 'Completed';
+                        clearInterval(scanInterval);
+                        
+                        // Generate fingerprint ID
+                        const fingerprintId = generateFingerprintId();
+                        
+                        addStatusMessage(`Biometric scan successful for: ${userName}`, 'success');
+                        addStatusMessage(`Fingerprint ID generated: ${fingerprintId}`, 'success');
+                        addStatusMessage('Preparing data transmission...');
+                        
+                        // Send data to backend
+                        setTimeout(() => {
+                            sendDataToBackend(userName, fingerprintId);
+                            resolve();
+                        }, 800);
+                    }
+                }, intervalTime);
+            });
+        }
+        
+        // Send data to backend
+        async function sendDataToBackend(name, fingerprintId) {
+            addStatusMessage('Establishing secure connection to server...');
+            
+            try {
+                const response = await fetch('submit.php', {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json',
+                    },
+                    body: JSON.stringify({
+                        name: name,
+                        fingerprintId: fingerprintId
+                    })
+                });
+                
+                const data = await response.json();
+                
+                if (data.success) {
+                    addStatusMessage('Data transmission successful!', 'success');
+                    addStatusMessage(`Record ID: ${data.recordId}`, 'success');
+                    addStatusMessage('Secure connection terminated.', 'success');
+                    
+                    // Reset interface after delay
+                    setTimeout(() => {
+                        resetInterface();
+                    }, 3000);
+                } else {
+                    addStatusMessage(`ERROR: ${data.message}`, 'error');
+                    
+                    // Re-enable input and button on error
+                    userNameInput.disabled = false;
+                    scanButton.disabled = false;
+                    scanButton.classList.add('scanning-animation');
+                    scanButton.innerHTML = '<i class="fas fa-fingerprint mr-3"></i> INITIATE FINGERPRINT SCAN';
+                }
+            } catch (error) {
+                addStatusMessage('NETWORK ERROR: Unable to reach server', 'error');
+                addStatusMessage('Please check your connection and try again.', 'error');
+                
+                // Re-enable input and button on error
+                userNameInput.disabled = false;
+                scanButton.disabled = false;
+                scanButton.classList.add('scanning-animation');
+                scanButton.innerHTML = '<i class="fas fa-fingerprint mr-3"></i> INITIATE FINGERPRINT SCAN';
+            }
+        }
+        
+        // Reset the interface
+        function resetInterface() {
+            // Hide progress section
+            progressSection.classList.add('hidden');
+            progressFill.style.width = '0%';
+            
+            // Reset button
+            scanButton.disabled = false;
+            scanButton.classList.add('scanning-animation');
+            scanButton.innerHTML = '<i class="fas fa-fingerprint mr-3"></i> INITIATE FINGERPRINT SCAN';
+            
+            // Reset input
+            userNameInput.disabled = false;
+            userNameInput.value = '';
+            
+            // Add final status message
+            addStatusMessage('System ready for next scan. Awaiting user input.');
+        }
+        
+        // Add some random terminal effects
+        setInterval(() => {
+            if (Math.random() > 0.8 && !scanButton.disabled) {
+                const effects = [
+                    '> Monitoring network integrity...',
+                    '> Firewall status: ACTIVE',
+                    '> Encryption protocols: ONLINE',
+                    '> System temperature: NORMAL',
+                    '> Memory usage: 42%'
+                ];
+                const randomEffect = effects[Math.floor(Math.random() * effects.length)];
+                addStatusMessage(randomEffect);
+            }
+        }, 8000);
+        
+        // Auto-focus on input field
+        userNameInput.focus();
+    </script>
+</body>
+</html>
